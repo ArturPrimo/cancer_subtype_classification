@@ -1,2 +1,6 @@
 .Rhistory
-
+cleaned_data/
+data/tcga_brca.csv
+data/tcga_coad.csv
+data/tcga_prad.csv
+.venv/
