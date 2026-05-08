@@ -4,8 +4,10 @@ from sklearn.feature_selection import f_classif, SelectFromModel
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 #data manipulation
 
@@ -37,7 +39,7 @@ selectors = {
     "Embedded_XGBoost": SelectFromModel(XGBClassifier(eval_metric="mlogloss"), max_features=50, threshold=-np.inf)
 }
 
-results = {}
+
 
 for name, selector in selectors.items():
 
@@ -49,11 +51,30 @@ for name, selector in selectors.items():
     print("Feature selection complete")
     print("Selected features:", X_train_new.shape[1])
 
-    #eval of performance:
+    
     model = LogisticRegression().fit(X_train_new, y_train)
-    score = model.score(X_test_new, y_test)
 
-    results[name] = {"Accuracy": score, "Features": X_train_new.shape[1]}
+    
+    pred = model.predict(X_test_new)
+
+    #eval of performance:
+    
+    accuracy = accuracy_score(y_test, pred)
+    f1 = f1_score(y_test, pred, average="weighted")
+    
 
     print(name)
-    print(results)
+    
+    print(f"Accuracy: {accuracy}")
+    print(f"F1 score: {f1}")
+
+    cm = confusion_matrix(y_test, pred)
+
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+
+    disp.plot(cmap="Blues")
+
+    plt.title(f"Confusion Matrix - {name}")
+    plt.show()
+    
+
