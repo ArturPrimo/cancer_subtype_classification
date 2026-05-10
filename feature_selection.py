@@ -4,10 +4,11 @@ from sklearn.feature_selection import f_classif, SelectFromModel
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, ConfusionMatrixDisplay, roc_auc_score
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 #data manipulation
 
@@ -18,19 +19,17 @@ brca_csv = pd.read_csv("cleaned_data/merged_brca.csv")
 coad_csv = pd.read_csv("cleaned_data/merged_coad.csv")
 prad_csv = pd.read_csv("cleaned_data/merged_prad.csv")
 
+
+datasets = {
+    "BRCA": brca_csv,
+    "COAD": coad_csv,
+    "PRAD": prad_csv
+}
+
+all_results = []
+
+#used for turning categories into numeric vals:
 le = LabelEncoder()
-
-y = brca_csv["Subtype_Selected"]
-y = le.fit_transform(y)
-
-X = brca_csv.drop(columns=["pan.samplesID", "Subtype_Selected"])
-X = X.astype(float)
-
-
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-
-#missing scaling of data, need to understand how to do it.
 
 #all methods will select k-best features (50)
 selectors = {
@@ -40,41 +39,85 @@ selectors = {
 }
 
 
+for dataset_name, dataset in datasets.items():
 
-for name, selector in selectors.items():
+    print(f"Working with dataset: {dataset}")
+    y = dataset["Subtype_Selected"]
+    y = le.fit_transform(y)
 
-    print(f"\nRunning: {name}")
+    X = dataset.drop(columns=["pan.samplesID", "Subtype_Selected"])
+    X = X.astype(float)
 
-    X_train_new = selector.fit_transform(X_train, y_train)
-    X_test_new = selector.transform(X_test)
-    
-    print("Feature selection complete")
-    print("Selected features:", X_train_new.shape[1])
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-    
-    model = LogisticRegression().fit(X_train_new, y_train)
+    for name, selector in selectors.items():
 
-    
-    pred = model.predict(X_test_new)
+        print(f"\nRunning: {name}")
 
-    #eval of performance:
-    
-    accuracy = accuracy_score(y_test, pred)
-    f1 = f1_score(y_test, pred, average="weighted")
-    
+        start_time = time.time()
 
-    print(name)
-    
-    print(f"Accuracy: {accuracy}")
-    print(f"F1 score: {f1}")
+        X_train_new = selector.fit_transform(X_train, y_train)
+        X_test_new = selector.transform(X_test)
+        
+        print("Feature selection complete")
+        print("Selected features:", X_train_new.shape[1])
 
-    cm = confusion_matrix(y_test, pred)
+        
+        model = LogisticRegression().fit(X_train_new, y_train)
 
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        
+        pred = model.predict(X_test_new)
+        proba = model.predict_proba(X_test_new)
+        selected_genes = X.columns[selector.get_support()].tolist()
 
-    disp.plot(cmap="Blues")
+        #eval of performance:
+        accuracy = accuracy_score(y_test, pred)
+        f1 = f1_score(y_test, pred, average="weighted")
+        auroc = roc_auc_score(y_test, proba, multi_class="ovr", average="weighted")
+        
+        
+        runtime = time.time() - start_time
 
-    plt.title(f"Confusion Matrix - {name}")
-    plt.show()
-    
+        print(name)
+        
+        print(f"Accuracy: {accuracy}")
+        print(f"F1 score: {f1}")
+        print(f"Runtime: {runtime} sec")
+        print(f"AUROC: {auroc}")
+        print(f"Selected genes for {name}:")
+        print(selected_genes)
+
+        cm = confusion_matrix(y_test, pred)
+
+        
+        
+        disp = ConfusionMatrixDisplay(
+            confusion_matrix=cm,
+            display_labels=le.classes_
+        )
+
+
+
+        disp.plot(cmap="Blues")
+
+        plt.title(f"Confusion Matrix - {name}")
+        plt.xticks(rotation=45)
+        plt.show()
+
+        all_results.append({
+            "Dataset": dataset_name,
+            "Selector": name,
+            "Accuracy": accuracy,
+            "F1_Score": f1,
+            "AUROC": auroc,
+            "Selected_Features": X_train_new.shape[1],
+            "Runtime_Seconds": runtime,
+            "Selected_Genes": ";".join(selected_genes),
+        })
+        
+
+results_df = pd.DataFrame(all_results)
+
+results_df.to_csv("data/feature_selection_results.csv", index=False)
+
 
