@@ -1,8 +1,8 @@
-#install.packages("BiocManager")
-#BiocManager::install("TCGAbiolinks")
-#install.packages("DT")
-#install.packages("rlang")
-#update.packages(ask = FALSE)
+install.packages("BiocManager")
+BiocManager::install("TCGAbiolinks")
+install.packages("DT")
+install.packages("rlang")
+update.packages(ask = FALSE)
 
 setwd("C:/Users/artur/OneDrive/Documents/VT/Junior/Spring/ECE4424/cancer_subtype_classification")
 

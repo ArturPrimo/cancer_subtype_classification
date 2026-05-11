@@ -42,13 +42,16 @@ selectors = {
 for dataset_name, dataset in datasets.items():
 
     print(f"Working with dataset: {dataset}")
+
     y = dataset["Subtype_Selected"]
     y = le.fit_transform(y)
+    all_class_ids = np.arange(len(le.classes_))
 
     X = dataset.drop(columns=["pan.samplesID", "Subtype_Selected"])
     X = X.astype(float)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    #stratify is used to avoid missing subtype classes.
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,stratify=y) 
 
     for name, selector in selectors.items():
 
@@ -63,7 +66,7 @@ for dataset_name, dataset in datasets.items():
         print("Selected features:", X_train_new.shape[1])
 
         
-        model = LogisticRegression().fit(X_train_new, y_train)
+        model = LogisticRegression(max_iter=5000).fit(X_train_new, y_train)
 
         
         pred = model.predict(X_test_new)
@@ -73,9 +76,10 @@ for dataset_name, dataset in datasets.items():
         #eval of performance:
         accuracy = accuracy_score(y_test, pred)
         f1 = f1_score(y_test, pred, average="weighted")
-        auroc = roc_auc_score(y_test, proba, multi_class="ovr", average="weighted")
+        auroc = roc_auc_score(y_test, proba, multi_class="ovr", average="weighted", labels=all_class_ids)
         
         
+
         runtime = time.time() - start_time
 
         print(name)
@@ -87,7 +91,7 @@ for dataset_name, dataset in datasets.items():
         print(f"Selected genes for {name}:")
         print(selected_genes)
 
-        cm = confusion_matrix(y_test, pred)
+        cm = confusion_matrix(y_test, pred, labels=all_class_ids)
 
         
         
